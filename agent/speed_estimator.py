@@ -8,8 +8,12 @@ class SpeedEstimator:
         self.p = np.zeros(lanes)
         self.width = width
         self.lanes = lanes
+        self.rounds = 0
 
     def update(self, cars, occupancy_trails):
+
+        self.rounds += 1
+
         for x in range(self.lanes):
             for y in range(self.width):
                 speed = -1

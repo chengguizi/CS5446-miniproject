@@ -43,7 +43,6 @@ if __name__ == '__main__':
             episode_rewards = 0.0
             for t in range(t_max):
                 action = agent.step(state)
-                action = int(action)
                 # print(action)
                 # env.render()
                 next_state, reward, done, info = env.step(action)
@@ -88,6 +87,7 @@ if __name__ == '__main__':
 
     def get_task():
         tcs = [('t2_tmax50', 50), ('t2_tmax40', 40)]
+        # tcs = [ ('t2_tmax40', 40)]
         return {
             'time_limit': 600, # 600 
             'testcases': [{ 'id': tc, 'env': construct_random_lane_env(), 'runs': 300, 't_max': t_max } for tc, t_max in tcs] # 300

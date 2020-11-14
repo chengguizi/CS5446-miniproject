@@ -120,6 +120,13 @@ class ExpertAgent(Agent):
         # we are in the deadzone if y is at least y_end
         return y <= y_end
 
+    # all are slow lanes above the current one
+    def all_slow_lanes(self, lane):
+        for i in range(lane):
+            if self.speed_estimator.max_speed[i] < -1:
+                return False
+        return True
+
     '''
     An example agent that just output a random action.
     '''
@@ -235,14 +242,16 @@ class ExpertAgent(Agent):
 
         agent_lane, agent_y = self.get_position(state, self.agent)
 
-        # run 3 times first, straight
-        if agent_lane == self.lanes - 1 and agent_y >= self.width - 3:
-            return int(self.FORWARD - 1)
+        
 
         # print(agent_lane, agent_y)
 
         # calculate maximum alloable forward speed, without crashing for sure (but may be crashed from behind though)
         max_speed = self.find_max_speed_no_crash(state[self.cars], agent_lane, agent_y)
+
+        # run 3 times first, straight
+        if agent_lane == self.lanes - 1 and agent_y >= self.width - 3:
+            return int(self.FORWARD + max_speed)
 
         # assume the goal is always on the top row, then we are set to just go forward
         if agent_lane == 0:
@@ -257,10 +266,14 @@ class ExpertAgent(Agent):
             # we want to go up here, however, we want to avoid the triangle deadlock, if there are concecusive speed 1 lanes
 
             if not self.check_deadlock_triangle(state[self.cars], agent_lane - 1, agent_y):
-                return int(self.UP)
-
+                # print("try moving up")
+                # futhre herestics: if all above are slow lanes, and we are far from goal, compared to remaining steps, keep in the fast lane
+                should_move_up = (40 - self.speed_estimator.rounds) < agent_lane * 2 or agent_y < agent_lane * 2
+                if not self.all_slow_lanes(agent_lane) or should_move_up or self.speed_estimator.max_speed[agent_lane] == -1: # the remaining rounds is enough to move up
+                    return int(self.UP)
+        # print("give up moving up", self.all_slow_lanes(agent_lane), (40 - self.speed_estimator.rounds), agent_lane * 4 )
         # if the upper lane is always slow, we should move as fast as possible
-        if self.speed_estimator.max_speed[agent_lane-1] == -1:
+        if self.speed_estimator.max_speed[agent_lane-1] == -1 or up_danger < 0.1:
             return int(self.FORWARD + max_speed)
 
         return int(self.FORWARD -1)
