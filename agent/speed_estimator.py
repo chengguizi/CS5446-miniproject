@@ -5,6 +5,7 @@ class SpeedEstimator:
     def __init__(self, lanes=10, width=50):
         self.min_speed = - np.ones(lanes) * 3
         self.max_speed = np.zeros(lanes)
+        self.p = np.zeros(lanes)
         self.width = width
         self.lanes = lanes
 
@@ -26,6 +27,17 @@ class SpeedEstimator:
                             self.max_speed[x] = speed
                         if speed > self.min_speed[x]:
                             self.min_speed[x] = speed
+
+            self.p[x] = 1.0 / (self.min_speed[x] - self.max_speed[x] + 1)
+
+    def p_speed_greater(self, lane, speed):
+        if self.min_speed[lane] < speed:
+            return 0.0
+
+        if self.max_speed[lane] > speed:
+            return 0.0
+
+        return (speed - self.max_speed[lane]) * self.p[lane]
 
     def print(self):
         for x in range(self.lanes):

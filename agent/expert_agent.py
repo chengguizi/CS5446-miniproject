@@ -20,7 +20,9 @@ class ExpertAgent(Agent):
         return (x[0],y[0])
 
     def find_max_speed_no_crash(self, cars, lane, y):
-        max_speed = -1
+
+        # our estimator will tell us the minimum speed the lane's cars are travelling
+        max_speed = self.speed_estimator.min_speed[lane]
 
         # have empty space in front
         if y >= 1 and cars[lane, y-1] == 0:
@@ -33,26 +35,23 @@ class ExpertAgent(Agent):
         if y + max_speed < lane:
             max_speed = min(lane - y, -1)
 
-        return max_speed
+        return max(max_speed, self.agent_max_speed)
 
     def up_lane_danger_level(self, cars, lane, y):
         assert lane > 0
         
-        # # the cell is currently occupied, then the trail will definitely be there the next
-        # if cars[lane-1, (y-1)%self.width]:
-        #     return 1
-
+        # have a car right above
         if cars[lane-1, y]:
             return 1
 
         # if the right-back has a car, the mild risk of collision
         if cars[lane-1, (y+1)%self.width]:
-            return 0.67
+            return self.speed_estimator.p_speed_greater(lane-1, -1)
         
         if cars[lane-1, (y+2)%self.width]:
-            return 0.33
+            return self.speed_estimator.p_speed_greater(lane-1, -2)
         
-        return 0
+        return 0.0
 
 
     # assess the risk of being tailgated and crash (getting too close)
@@ -75,6 +74,51 @@ class ExpertAgent(Agent):
 
         return 0
 
+    def check_deadlock_triangle(self, cars, lane, y):
+
+        if lane == 0:
+            return False
+        # no problem if the lane has higher than 1 speed
+        if self.speed_estimator.max_speed[lane] != -1:
+            return False
+
+        px = lane
+        py = y
+        assert cars[px, py] == 0
+
+        # find the first car in front
+        while(cars[px, py] == 0 and py > 0):
+            py -= 1
+
+        x_start = px
+        y_start = py
+
+        
+
+        while(px > 0):
+            if cars[px, py + 1]:
+                py += 1
+            # we reached the first position that has no car on this lane
+            elif cars[px - 1, py + 1] and self.speed_estimator.max_speed[px - 1] == -1:
+                # there is car blocking on top, contintue
+                px -= 1
+                py += 1
+            else:
+                break
+        
+        if px == 0:
+            py = self.width - 1
+
+        x_end = px
+        y_end = py
+
+        assert x_start >= x_end
+        assert y_start <= y_end
+
+        print(x_start, y_start, x_end, y_end)
+
+        # we are in the deadzone if y is at least y_end
+        return y <= y_end
 
     '''
     An example agent that just output a random action.
@@ -114,13 +158,19 @@ class ExpertAgent(Agent):
         agent_speed_range   = kwargs.get('agent_speed_range')
         # gamma               = kwargs.get('gamma')
         self.width =  kwargs.get('width')
+        if self.width == None:
+            self.width = 50
         self.lanes = kwargs.get('lanes')
+        if self.lanes == None:
+            self.lanes = 10
 
         # since agent_speed_range is given, we can fix the actions
         self.UP = 0
         self.DOWN = 1
         # this is forward[-1] position
         self.FORWARD = 2 + (agent_speed_range[1] - agent_speed_range[0] + 1)
+        self.agent_max_speed = agent_speed_range[0]
+        self.agent_min_speed = agent_speed_range[1] 
 
         self.cars = 0
         self.agent = 1
@@ -156,7 +206,7 @@ class ExpertAgent(Agent):
         print('>>> RESET >>>')
         print('state:', state)
         '''
-        pass
+        self.speed_estimator = SpeedEstimator(self.lanes, self.width)
 
     def step(self, state, *args, **kwargs):
 
@@ -177,10 +227,17 @@ class ExpertAgent(Agent):
         # Uncomment to help debugging
         # print('>>> STEP >>>')
         # print('state:', state.shape)
+        
         self.speed_estimator.update(state[self.cars], state[self.occupancy_trails])
         self.speed_estimator.print()
 
+        
+
         agent_lane, agent_y = self.get_position(state, self.agent)
+
+        # run 3 times first, straight
+        if agent_lane == self.lanes - 1 and agent_y >= self.width - 3:
+            return int(self.FORWARD - 1)
 
         # print(agent_lane, agent_y)
 
@@ -195,18 +252,18 @@ class ExpertAgent(Agent):
         # decide if we should move up
         up_danger = self.up_lane_danger_level(state[self.cars], agent_lane, agent_y)
 
-        speeds = np.arange(-1, max_speed - 1, -1, dtype=int)
-        np.random.shuffle(speeds)
+        print(up_danger)
+        if up_danger < 0.1:
+            # we want to go up here, however, we want to avoid the triangle deadlock, if there are concecusive speed 1 lanes
 
-        # print(speeds)
+            if not self.check_deadlock_triangle(state[self.cars], agent_lane - 1, agent_y):
+                return int(self.UP)
 
-        for speed in speeds:
-            tail_danger = self.tail_danger_level(state[self.cars], agent_lane, agent_y, speed)
+        # if the upper lane is always slow, we should move as fast as possible
+        if self.speed_estimator.max_speed[agent_lane-1] == -1:
+            return int(self.FORWARD + max_speed)
 
-            if (tail_danger < up_danger):
-                return int(self.FORWARD + speed)
-
-        return int(self.UP)
+        return int(self.FORWARD -1)
 
     def update(self, *args, **kwargs):
         '''
