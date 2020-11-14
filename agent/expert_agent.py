@@ -7,7 +7,7 @@ import random
 import torch
 import numpy as np
 
-from enum import Enum
+from speed_estimator import SpeedEstimator
 
 class ExpertAgent(Agent):
 
@@ -126,6 +126,8 @@ class ExpertAgent(Agent):
         self.agent = 1
         self.finish_position = 2
         self.occupancy_trails = 3
+
+        self.speed_estimator = SpeedEstimator(self.lanes, self.width)
         
 
         '''
@@ -175,6 +177,8 @@ class ExpertAgent(Agent):
         # Uncomment to help debugging
         # print('>>> STEP >>>')
         # print('state:', state.shape)
+        self.speed_estimator.update(state[self.cars], state[self.occupancy_trails])
+        self.speed_estimator.print()
 
         agent_lane, agent_y = self.get_position(state, self.agent)
 
@@ -185,7 +189,7 @@ class ExpertAgent(Agent):
 
         # assume the goal is always on the top row, then we are set to just go forward
         if agent_lane == 0:
-            return self.FORWARD + max_speed
+            return int(self.FORWARD + max_speed)
 
 
         # decide if we should move up
@@ -200,9 +204,9 @@ class ExpertAgent(Agent):
             tail_danger = self.tail_danger_level(state[self.cars], agent_lane, agent_y, speed)
 
             if (tail_danger < up_danger):
-                return self.FORWARD + speed
+                return int(self.FORWARD + speed)
 
-        return self.UP
+        return int(self.UP)
 
     def update(self, *args, **kwargs):
         '''

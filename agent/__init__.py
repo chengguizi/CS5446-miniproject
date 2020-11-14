@@ -45,7 +45,7 @@ if __name__ == '__main__':
                 action = agent.step(state)
                 action = int(action)
                 # print(action)
-                # env.render()
+                env.render()
                 next_state, reward, done, info = env.step(action)
                 full_state = {
                     'state': state, 'action': action, 'reward': reward, 'next_state': next_state, 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
                 if done:
                     break
             rewards.append(episode_rewards)
-            # input()
+            input()
         avg_rewards = sum(rewards)/len(rewards)
         print("{} run(s) avg rewards : {:.1f}".format(runs, avg_rewards))
         return avg_rewards
