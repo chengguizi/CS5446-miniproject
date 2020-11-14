@@ -115,7 +115,7 @@ class ExpertAgent(Agent):
         assert x_start >= x_end
         assert y_start <= y_end
 
-        print(x_start, y_start, x_end, y_end)
+        # print(x_start, y_start, x_end, y_end)
 
         # we are in the deadzone if y is at least y_end
         return y <= y_end
@@ -229,7 +229,7 @@ class ExpertAgent(Agent):
         # print('state:', state.shape)
         
         self.speed_estimator.update(state[self.cars], state[self.occupancy_trails])
-        self.speed_estimator.print()
+        # self.speed_estimator.print()
 
         
 
@@ -252,7 +252,7 @@ class ExpertAgent(Agent):
         # decide if we should move up
         up_danger = self.up_lane_danger_level(state[self.cars], agent_lane, agent_y)
 
-        print(up_danger)
+        # print(up_danger)
         if up_danger < 0.1:
             # we want to go up here, however, we want to avoid the triangle deadlock, if there are concecusive speed 1 lanes
 
